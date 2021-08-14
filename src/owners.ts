@@ -30,6 +30,7 @@ function mapWithDefault<K, V>(
 
 export const trimUsername = (original: string): string => {
   const match = original.match(/[\w-/]+/)
+  core.info(JSON.stringify(match))
   return match ? match[0] : original
 }
 

@@ -142,6 +142,7 @@ function mapWithDefault(map, key, options) {
 }
 const trimUsername = (original) => {
     const match = original.match(/[\w-/]+/);
+    core.info(JSON.stringify(match));
     return match ? match[0] : original;
 };
 exports.trimUsername = trimUsername;
