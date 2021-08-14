@@ -10,6 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run Codeowners merge check
-        uses: squarethecircle/robot-overlord@master
+        uses: squarethecircle/robot-overlord@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
