@@ -172,11 +172,16 @@ const approverGroupsFromConfigDir = () => {
 const findGithubGroupMembers = async (groupName) => {
     const [org, team_slug] = groupName.split('/');
     const group = { groupName, members: [] };
-    const groupMembers = await octokit_1.octokit.paginate(octokit_1.octokit.rest.teams.listMembersInOrg, { org, team_slug });
-    if (groupMembers) {
-        group.members = groupMembers
-            .filter(tg.isNotNullish)
-            .map(memberData => memberData.login);
+    try {
+        const groupMembers = await octokit_1.octokit.paginate(octokit_1.octokit.rest.teams.listMembersInOrg, { org, team_slug });
+        if (groupMembers) {
+            group.members = groupMembers
+                .filter(tg.isNotNullish)
+                .map(memberData => memberData.login);
+        }
+    }
+    catch (err) {
+        core.error(err);
     }
     return group;
 };
@@ -187,6 +192,7 @@ const resolveGroupMembership = async (groups) => {
         b.members.forEach(m => members.add(m));
         return { groupName, members: Array.from(members) };
     };
+    core.info(`Groups to lookup: ${groups.map(g => g.groupName).join(', ')}`);
     const groupsByName = new Map();
     const configGroups = approverGroupsFromConfigDir();
     const githubGroups = await Promise.all(groups.map(async (g) => findGithubGroupMembers(g.groupName)));

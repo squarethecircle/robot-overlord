@@ -66,14 +66,18 @@ const findGithubGroupMembers = async (
 ): Promise<CodeownerGroup> => {
   const [org, team_slug] = groupName.split('/')
   const group: CodeownerGroup = {groupName, members: []}
-  const groupMembers = await octokit.paginate(
-    octokit.rest.teams.listMembersInOrg,
-    {org, team_slug}
-  )
-  if (groupMembers) {
-    group.members = groupMembers
-      .filter(tg.isNotNullish)
-      .map(memberData => memberData.login)
+  try {
+    const groupMembers = await octokit.paginate(
+      octokit.rest.teams.listMembersInOrg,
+      {org, team_slug}
+    )
+    if (groupMembers) {
+      group.members = groupMembers
+        .filter(tg.isNotNullish)
+        .map(memberData => memberData.login)
+    }
+  } catch (err) {
+    core.error(err)
   }
   return group
 }
@@ -91,6 +95,7 @@ const resolveGroupMembership = async (
     b.members.forEach(m => members.add(m))
     return {groupName, members: Array.from(members)}
   }
+  core.info(`Groups to lookup: ${groups.map(g => g.groupName).join(', ')}`)
   const groupsByName = new Map<string, CodeownerGroup[]>()
   const configGroups = approverGroupsFromConfigDir()
   const githubGroups = await Promise.all(
