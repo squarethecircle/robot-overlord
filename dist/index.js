@@ -33,7 +33,7 @@ async function run() {
     try {
         if (github_1.context.eventName === 'pull_request_review') {
             const review = github_1.context.payload.review;
-            if (review.state === 'commented') {
+            if (review.state === 'commented' && !review.body.includes('/codeowners')) {
                 core.info('No need to run, it was only a comment.');
                 return;
             }

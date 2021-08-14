@@ -2,14 +2,15 @@ name: 'CODEOWNERS check'
 on:
   pull_request_target: {types: [opened]}
   pull_request_review: {types: [submitted]}
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
       - name: Run Codeowners merge check
         uses: squarethecircle/robot-overlord@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-user: 'github-actions'
+          org-name: TheMachine
+          approvers-dir: '.github/approvers'

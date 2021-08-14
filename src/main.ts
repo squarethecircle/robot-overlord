@@ -7,7 +7,10 @@ async function run(): Promise<void> {
   try {
     if (context.eventName === 'pull_request_review') {
       const review = context.payload.review as PullRequestReview
-      if (review.state === 'commented') {
+      if (
+        review.state === 'commented' &&
+        !review.body.includes('/codeowners')
+      ) {
         core.info('No need to run, it was only a comment.')
         return
       }
