@@ -1,0 +1,19 @@
+name: 'Robot Overlord'
+description: 'Better CODEOWNERS for a better world'
+author: 'squarethecircle'
+inputs:
+  github-token: # change this
+    required: true
+    description: 'Github secret token'
+  github-user:
+    required: true
+    description: 'Github bot username'
+  org-name:
+    required: false
+    description: 'Github org parent of approver groups'
+  approvers-dir:
+    required: false
+    description: 'path to directory containing approvers files'
+runs:
+  using: 'node12'
+  main: 'dist/index.js'
