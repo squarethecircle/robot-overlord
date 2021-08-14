@@ -25,7 +25,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.4.0"
+    "@actions/core": "^1.4.0",
+    "@actions/github": "^5.0.0",
+    "@octokit/types": "^6.25.0",
+    "codeowners-utils": "^1.0.2",
+    "type-guards": "^0.15.0",
+    "yaml": "^1.10.2"
   },
   "devDependencies": {
     "@types/node": "^16.3.3",
