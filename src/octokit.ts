@@ -2,6 +2,7 @@ import {getOctokit} from '@actions/github'
 import * as core from '@actions/core'
 import {GitHub} from '@actions/github/lib/utils'
 import {OctokitResponse} from '@octokit/types'
+import {trimUsername} from './owners'
 
 const token = core.getInput('github-token')
 const octokit: InstanceType<typeof GitHub> = getOctokit(token)
@@ -26,7 +27,7 @@ export const getParamsForPR = (
 }
 
 const getActionUsername = async (): Promise<string> => {
-  return 'github-actions'
+  return trimUsername('github-actions')
 }
 
 export {octokit, extractOctokitResponse, getActionUsername}

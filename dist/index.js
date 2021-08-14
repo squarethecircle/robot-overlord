@@ -72,6 +72,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getActionUsername = exports.octokit = exports.getParamsForPR = void 0;
 const github_1 = __nccwpck_require__(5438);
 const core = __importStar(__nccwpck_require__(2186));
+const owners_1 = __nccwpck_require__(5787);
 const token = core.getInput('github-token');
 const octokit = github_1.getOctokit(token);
 exports.octokit = octokit;
@@ -85,7 +86,7 @@ const getParamsForPR = (pr) => {
 };
 exports.getParamsForPR = getParamsForPR;
 const getActionUsername = async () => {
-    return 'github-actions';
+    return owners_1.trimUsername('github-actions');
 };
 exports.getActionUsername = getActionUsername;
 
@@ -346,6 +347,7 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
         // count author towards owners requirement.
         currentApprovals.push(author);
     }
+    const currentApprovalsTrimmed = currentApprovals.map(owners_1.trimUsername);
     const alreadyApprovedByBot = currentApprovals.includes(actionUser);
     const ownerMatchedBy = (owner, candidates) => {
         const validApprovers = new Set('members' in owner ? owner.members : [owner.username]);
@@ -355,7 +357,7 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
         requirement,
         satisfiedBy: [
             ...new Set(requirement.members
-                .map(owner => ownerMatchedBy(owner, currentApprovals))
+                .map(owner => ownerMatchedBy(owner, currentApprovalsTrimmed))
                 .flat())
         ]
     }));
