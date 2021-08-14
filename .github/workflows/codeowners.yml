@@ -1,16 +1,15 @@
 name: 'CODEOWNERS check'
 on:
-  pull_request_target: { types: [opened] }
-  pull_request_review: { types: [submitted] }
+  pull_request_target: {types: [opened]}
+  pull_request_review: {types: [submitted]}
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Run Codeowners merge check
-      uses:  squarethecircle/robot-overlord@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        
+      - uses: actions/checkout@v2
+      - name: Run Codeowners merge check
+        uses: squarethecircle/robot-overlord@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

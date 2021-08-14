@@ -1,16 +1,16 @@
 export type CodeownerGroup = {
-    groupName: string;
-    members: string[];
-};
+  groupName: string
+  members: string[]
+}
 
 export type CodeownerUser = {
-    username: string;
-};
+  username: string
+}
 
-export type Codeowner = CodeownerGroup | CodeownerUser;
+export type Codeowner = CodeownerGroup | CodeownerUser
 
 export type CodeownerRequirement = {
-    pattern: string,
-    matchedFiles: string[],
-    members: Codeowner[],
-};
+  pattern: string
+  matchedFiles: string[]
+  members: Codeowner[]
+}
