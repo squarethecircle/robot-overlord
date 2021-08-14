@@ -28,6 +28,11 @@ function mapWithDefault<K, V>(
   return options.defaultValue
 }
 
+export const trimUsername = (original: string): string => {
+  const match = original.match(/[\w-/]+/)
+  return match ? match[0] : original
+}
+
 const getPRChangedFilenames = async (pr: PullRequest): Promise<string[]> => {
   const files = await octokit.paginate(
     octokit.rest.pulls.listFiles,
@@ -52,7 +57,10 @@ const approverGroupsFromConfigDir = (): CodeownerGroup[] => {
     try {
       const parsedConfig = YAML.parse(data)
       if (parsedConfig.approvers) {
-        members.push({groupName, members: parsedConfig.approvers})
+        members.push({
+          groupName,
+          members: parsedConfig.approvers.map(trimUsername)
+        })
       }
     } catch (err) {
       core.error(`Reading approver file ${filename} failed, continuing on.`)
@@ -66,18 +74,14 @@ const findGithubGroupMembers = async (
 ): Promise<CodeownerGroup> => {
   const [org, team_slug] = groupName.split('/')
   const group: CodeownerGroup = {groupName, members: []}
-  try {
-    const groupMembers = await octokit.paginate(
-      octokit.rest.teams.listMembersInOrg,
-      {org, team_slug}
-    )
-    if (groupMembers) {
-      group.members = groupMembers
-        .filter(tg.isNotNullish)
-        .map(memberData => memberData.login)
-    }
-  } catch (err) {
-    core.error(err)
+  const groupMembers = await octokit.paginate(
+    octokit.rest.teams.listMembersInOrg,
+    {org, team_slug}
+  )
+  if (groupMembers) {
+    group.members = groupMembers
+      .filter(tg.isNotNullish)
+      .map(memberData => memberData.login)
   }
   return group
 }
@@ -156,7 +160,8 @@ export const ownersForChangedFilesInPR = async (
     if (requirement) {
       requirement.matchedFiles.push(filename)
     } else {
-      const members: Codeowner[] = matchingEntry.owners.map(o => {
+      const members: Codeowner[] = matchingEntry.owners.map(ownerName => {
+        const o = trimUsername(ownerName)
         if (o.includes('/')) {
           return mapWithDefault(ownerGroupsByName, o, {
             defaultValue: {groupName: o, members: []}

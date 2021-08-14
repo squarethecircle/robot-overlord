@@ -56,7 +56,6 @@ const getCodeownerApprovalStatusForPR = async (
   pullRequest: PullRequest
 ): Promise<[CodeownersBotAction, CodeownersStatus[]]> => {
   const author = pullRequest.user?.login
-  core.info(JSON.stringify(pullRequest))
   const [requiredApprovals, currentApprovals, actionUser] = await Promise.all([
     ownersForChangedFilesInPR(pullRequest),
     currentPRApprovals(pullRequest),

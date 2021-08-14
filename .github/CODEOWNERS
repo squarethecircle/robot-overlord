@@ -1,4 +1,4 @@
 README.md squarethecircle
-*.ts mrgoodboy
-package.json dependabot
-package-lock.json squarethecircle
+*.ts @mrgoodboy
+package.json @dependabot
+package-lock.json @squarethecircle

@@ -120,7 +120,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ownersForChangedFilesInPR = void 0;
+exports.ownersForChangedFilesInPR = exports.trimUsername = void 0;
 const octokit_1 = __nccwpck_require__(3258);
 const codeowners = __importStar(__nccwpck_require__(4445));
 const core = __importStar(__nccwpck_require__(2186));
@@ -139,6 +139,11 @@ function mapWithDefault(map, key, options) {
     map.set(key, options.defaultValue);
     return options.defaultValue;
 }
+const trimUsername = (original) => {
+    const match = original.match(/[\w-/]+/);
+    return match ? match[0] : original;
+};
+exports.trimUsername = trimUsername;
 const getPRChangedFilenames = async (pr) => {
     const files = await octokit_1.octokit.paginate(octokit_1.octokit.rest.pulls.listFiles, octokit_1.getParamsForPR(pr));
     return files.map(f => f.filename);
@@ -160,7 +165,10 @@ const approverGroupsFromConfigDir = () => {
         try {
             const parsedConfig = yaml_1.default.parse(data);
             if (parsedConfig.approvers) {
-                members.push({ groupName, members: parsedConfig.approvers });
+                members.push({
+                    groupName,
+                    members: parsedConfig.approvers.map(exports.trimUsername)
+                });
             }
         }
         catch (err) {
@@ -172,16 +180,11 @@ const approverGroupsFromConfigDir = () => {
 const findGithubGroupMembers = async (groupName) => {
     const [org, team_slug] = groupName.split('/');
     const group = { groupName, members: [] };
-    try {
-        const groupMembers = await octokit_1.octokit.paginate(octokit_1.octokit.rest.teams.listMembersInOrg, { org, team_slug });
-        if (groupMembers) {
-            group.members = groupMembers
-                .filter(tg.isNotNullish)
-                .map(memberData => memberData.login);
-        }
-    }
-    catch (err) {
-        core.error(err);
+    const groupMembers = await octokit_1.octokit.paginate(octokit_1.octokit.rest.teams.listMembersInOrg, { org, team_slug });
+    if (groupMembers) {
+        group.members = groupMembers
+            .filter(tg.isNotNullish)
+            .map(memberData => memberData.login);
     }
     return group;
 };
@@ -244,7 +247,8 @@ const ownersForChangedFilesInPR = async (pullRequest) => {
             requirement.matchedFiles.push(filename);
         }
         else {
-            const members = matchingEntry.owners.map(o => {
+            const members = matchingEntry.owners.map(ownerName => {
+                const o = exports.trimUsername(ownerName);
                 if (o.includes('/')) {
                     return mapWithDefault(ownerGroupsByName, o, {
                         defaultValue: { groupName: o, members: [] }
@@ -332,7 +336,6 @@ const currentPRApprovals = async (pullRequest) => {
 const getCodeownerApprovalStatusForPR = async (pullRequest) => {
     var _a;
     const author = (_a = pullRequest.user) === null || _a === void 0 ? void 0 : _a.login;
-    core.info(JSON.stringify(pullRequest));
     const [requiredApprovals, currentApprovals, actionUser] = await Promise.all([
         owners_1.ownersForChangedFilesInPR(pullRequest),
         currentPRApprovals(pullRequest),
