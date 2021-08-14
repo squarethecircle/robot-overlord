@@ -1,11 +1,14 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Robot Overlord'
+description: 'Better CODEOWNERS for a better world'
+author: 'squarethecircle'
 inputs:
-  milliseconds: # change this
+  github-token: # change this
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+    description: 'Github secret token'
+  org-name:
+    description: 'Github org parent of approver groups'
+  approvers-dir:
+    description: 'path to directory containing approvers files'
 runs:
   using: 'node12'
   main: 'dist/index.js'
