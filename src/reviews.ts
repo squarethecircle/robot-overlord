@@ -56,17 +56,22 @@ const getCodeownerApprovalStatusForPR = async (
   pullRequest: PullRequest
 ): Promise<[CodeownersBotAction, CodeownersStatus[]]> => {
   const author = pullRequest.user?.login
-  const [requiredApprovals, currentApprovals, actionUser] = await Promise.all([
+  const [
+    requiredApprovals,
+    currentApprovalLogins,
+    actionUser
+  ] = await Promise.all([
     ownersForChangedFilesInPR(pullRequest),
     currentPRApprovals(pullRequest),
     getActionUsername()
   ])
-  core.info(`current approvals: ${currentApprovals.join(', ')}`)
   if (author) {
     // count author towards owners requirement.
-    currentApprovals.push(author)
+    currentApprovalLogins.push(author)
   }
-  const currentApprovalsTrimmed = currentApprovals.map(trimUsername)
+  const currentApprovals = currentApprovalLogins.map(trimUsername)
+  core.info(`current approvals: ${currentApprovals.join(', ')}`)
+
   const alreadyApprovedByBot = currentApprovals.includes(actionUser)
 
   const ownerMatchedBy = (owner: Codeowner, candidates: string[]): string[] => {
@@ -81,7 +86,7 @@ const getCodeownerApprovalStatusForPR = async (
     satisfiedBy: [
       ...new Set<string>(
         requirement.members
-          .map(owner => ownerMatchedBy(owner, currentApprovalsTrimmed))
+          .map(owner => ownerMatchedBy(owner, currentApprovals))
           .flat()
       )
     ]

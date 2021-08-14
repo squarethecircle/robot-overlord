@@ -338,17 +338,17 @@ const currentPRApprovals = async (pullRequest) => {
 const getCodeownerApprovalStatusForPR = async (pullRequest) => {
     var _a;
     const author = (_a = pullRequest.user) === null || _a === void 0 ? void 0 : _a.login;
-    const [requiredApprovals, currentApprovals, actionUser] = await Promise.all([
+    const [requiredApprovals, currentApprovalLogins, actionUser] = await Promise.all([
         owners_1.ownersForChangedFilesInPR(pullRequest),
         currentPRApprovals(pullRequest),
         octokit_1.getActionUsername()
     ]);
-    core.info(`current approvals: ${currentApprovals.join(', ')}`);
     if (author) {
         // count author towards owners requirement.
-        currentApprovals.push(author);
+        currentApprovalLogins.push(author);
     }
-    const currentApprovalsTrimmed = currentApprovals.map(owners_1.trimUsername);
+    const currentApprovals = currentApprovalLogins.map(owners_1.trimUsername);
+    core.info(`current approvals: ${currentApprovals.join(', ')}`);
     const alreadyApprovedByBot = currentApprovals.includes(actionUser);
     const ownerMatchedBy = (owner, candidates) => {
         const validApprovers = new Set('members' in owner ? owner.members : [owner.username]);
@@ -358,7 +358,7 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
         requirement,
         satisfiedBy: [
             ...new Set(requirement.members
-                .map(owner => ownerMatchedBy(owner, currentApprovalsTrimmed))
+                .map(owner => ownerMatchedBy(owner, currentApprovals))
                 .flat())
         ]
     }));
