@@ -75,7 +75,7 @@ const getCodeownerApprovalStatusForPR = async (
   const statuses: CodeownersStatus[] = requiredApprovals.map(requirement => ({
     requirement,
     satisfiedBy: [
-      ...new Set(
+      ...new Set<string>(
         requirement.members
           .map(owner => ownerMatchedBy(owner, currentApprovals))
           .flat()
