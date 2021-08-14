@@ -84,8 +84,7 @@ const getParamsForPR = (pr) => {
 };
 exports.getParamsForPR = getParamsForPR;
 const getActionUsername = async () => {
-    const userData = await octokit.rest.users.getAuthenticated();
-    return userData.data.login;
+    return 'superbot';
 };
 exports.getActionUsername = getActionUsername;
 
@@ -311,22 +310,29 @@ var CodeownersBotAction;
     CodeownersBotAction["NOTHING"] = "NOTHING";
 })(CodeownersBotAction || (CodeownersBotAction = {}));
 const currentPRApprovals = async (pullRequest) => {
-    const reviews = await octokit_1.octokit.paginate(octokit_1.octokit.rest.pulls.listReviews, octokit_1.getParamsForPR(pullRequest));
-    if (!reviews) {
-        return [];
-    }
     const approvedBy = new Set();
-    reviews.forEach(review => {
-        if (!review.user) {
-            return;
+    try {
+        const reviews = await octokit_1.octokit.paginate(octokit_1.octokit.rest.pulls.listReviews, octokit_1.getParamsForPR(pullRequest));
+        if (!reviews) {
+            return [];
         }
-        if (review.state === 'APPROVED') {
-            approvedBy.add(review.user.login);
-        }
-        if (review.state === 'DISMISSED' || review.state === 'CHANGES_REQUESTED') {
-            approvedBy.delete(review.user.login);
-        }
-    });
+        reviews.forEach(review => {
+            if (!review.user) {
+                return;
+            }
+            if (review.state === 'APPROVED') {
+                approvedBy.add(review.user.login);
+            }
+            if (review.state === 'DISMISSED' ||
+                review.state === 'CHANGES_REQUESTED') {
+                approvedBy.delete(review.user.login);
+            }
+        });
+    }
+    catch (err) {
+        core.info('failure in fetching approvals');
+        core.error(err);
+    }
     return Array.from(approvedBy);
 };
 const getCodeownerApprovalStatusForPR = async (pullRequest) => {

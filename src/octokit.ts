@@ -26,8 +26,7 @@ export const getParamsForPR = (
 }
 
 const getActionUsername = async (): Promise<string> => {
-  const userData = await octokit.rest.users.getAuthenticated()
-  return userData.data.login
+  return 'superbot'
 }
 
 export {octokit, extractOctokitResponse, getActionUsername}

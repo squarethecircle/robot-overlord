@@ -29,25 +29,33 @@ enum CodeownersBotAction {
 const currentPRApprovals = async (
   pullRequest: PullRequest
 ): Promise<string[]> => {
-  const reviews = await octokit.paginate(
-    octokit.rest.pulls.listReviews,
-    getParamsForPR(pullRequest)
-  )
-  if (!reviews) {
-    return []
-  }
   const approvedBy = new Set<string>()
-  reviews.forEach(review => {
-    if (!review.user) {
-      return
+  try {
+    const reviews = await octokit.paginate(
+      octokit.rest.pulls.listReviews,
+      getParamsForPR(pullRequest)
+    )
+    if (!reviews) {
+      return []
     }
-    if (review.state === 'APPROVED') {
-      approvedBy.add(review.user.login)
-    }
-    if (review.state === 'DISMISSED' || review.state === 'CHANGES_REQUESTED') {
-      approvedBy.delete(review.user.login)
-    }
-  })
+    reviews.forEach(review => {
+      if (!review.user) {
+        return
+      }
+      if (review.state === 'APPROVED') {
+        approvedBy.add(review.user.login)
+      }
+      if (
+        review.state === 'DISMISSED' ||
+        review.state === 'CHANGES_REQUESTED'
+      ) {
+        approvedBy.delete(review.user.login)
+      }
+    })
+  } catch (err) {
+    core.info('failure in fetching approvals')
+    core.error(err)
+  }
   return Array.from(approvedBy)
 }
 
