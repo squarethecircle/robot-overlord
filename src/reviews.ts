@@ -65,6 +65,7 @@ const getCodeownerApprovalStatusForPR = async (
     currentPRApprovals(pullRequest),
     getActionUsername()
   ])
+  const hasAtLeastOneApproval = currentApprovalLogins.length > 0
   if (author) {
     // count author towards owners requirement.
     currentApprovalLogins.push(author)
@@ -92,7 +93,6 @@ const getCodeownerApprovalStatusForPR = async (
     ]
   }))
 
-  const hasAtLeastOneApproval = currentApprovals.length > 0
   const passesAllOwnersRequirements = statuses.every(
     s => !!s.satisfiedBy.length
   )

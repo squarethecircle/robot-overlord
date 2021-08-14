@@ -343,6 +343,7 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
         currentPRApprovals(pullRequest),
         octokit_1.getActionUsername()
     ]);
+    const hasAtLeastOneApproval = currentApprovalLogins.length > 0;
     if (author) {
         // count author towards owners requirement.
         currentApprovalLogins.push(author);
@@ -362,7 +363,6 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
                 .flat())
         ]
     }));
-    const hasAtLeastOneApproval = currentApprovals.length > 0;
     const passesAllOwnersRequirements = statuses.every(s => !!s.satisfiedBy.length);
     let finalAction;
     if (hasAtLeastOneApproval && passesAllOwnersRequirements) {
