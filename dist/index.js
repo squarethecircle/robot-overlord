@@ -192,6 +192,8 @@ const resolveGroupMembership = async (groups) => {
         b.members.forEach(m => members.add(m));
         return { groupName, members: Array.from(members) };
     };
+    if (!groups.length)
+        return;
     core.info(`Groups to lookup: ${groups.map(g => g.groupName).join(', ')}`);
     const groupsByName = new Map();
     const configGroups = approverGroupsFromConfigDir();
@@ -300,6 +302,7 @@ exports.onPullRequestUpdate = void 0;
 const octokit_1 = __nccwpck_require__(3258);
 const owners_1 = __nccwpck_require__(5787);
 const tg = __importStar(__nccwpck_require__(8050));
+const core = __importStar(__nccwpck_require__(2186));
 var CodeownersBotAction;
 (function (CodeownersBotAction) {
     CodeownersBotAction["APPROVE"] = "APPROVE";
@@ -334,6 +337,7 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
         currentPRApprovals(pullRequest),
         octokit_1.getActionUsername()
     ]);
+    core.info(`current approvals: ${currentApprovals.join(', ')}`);
     if (author) {
         // count author towards owners requirement.
         currentApprovals.push(author);
@@ -421,6 +425,7 @@ const onPullRequestUpdate = async (pullRequest) => {
         return;
     }
     const statusBody = generateReviewComment(statuses, pullRequest);
+    core.info(statusBody);
     if (action === CodeownersBotAction.COMMENT) {
         postReviewComment(pullRequest, statusBody);
     }

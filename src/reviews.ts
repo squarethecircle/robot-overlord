@@ -12,6 +12,7 @@ import {
 } from './types'
 import {ownersForChangedFilesInPR} from './owners'
 import * as tg from 'type-guards'
+import * as core from '@actions/core'
 
 type CodeownersStatus = {
   requirement: CodeownerRequirement
@@ -59,6 +60,7 @@ const getCodeownerApprovalStatusForPR = async (
     currentPRApprovals(pullRequest),
     getActionUsername()
   ])
+  core.info(`current approvals: ${currentApprovals.join(', ')}`)
   if (author) {
     // count author towards owners requirement.
     currentApprovals.push(author)
@@ -182,6 +184,7 @@ export const onPullRequestUpdate = async (
     return
   }
   const statusBody = generateReviewComment(statuses, pullRequest)
+  core.info(statusBody)
   if (action === CodeownersBotAction.COMMENT) {
     postReviewComment(pullRequest, statusBody)
   } else {

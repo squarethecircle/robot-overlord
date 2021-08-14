@@ -95,6 +95,7 @@ const resolveGroupMembership = async (
     b.members.forEach(m => members.add(m))
     return {groupName, members: Array.from(members)}
   }
+  if (!groups.length) return
   core.info(`Groups to lookup: ${groups.map(g => g.groupName).join(', ')}`)
   const groupsByName = new Map<string, CodeownerGroup[]>()
   const configGroups = approverGroupsFromConfigDir()
