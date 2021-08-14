@@ -323,8 +323,7 @@ const currentPRApprovals = async (pullRequest) => {
         if (review.state === 'APPROVED') {
             approvedBy.add(review.user.login);
         }
-        if (review.state === 'DISMISSED' ||
-            review.state === 'CHANGES_REQUESTED') {
+        if (review.state === 'DISMISSED' || review.state === 'CHANGES_REQUESTED') {
             approvedBy.delete(review.user.login);
         }
     });
@@ -333,6 +332,7 @@ const currentPRApprovals = async (pullRequest) => {
 const getCodeownerApprovalStatusForPR = async (pullRequest) => {
     var _a;
     const author = (_a = pullRequest.user) === null || _a === void 0 ? void 0 : _a.login;
+    core.info(JSON.stringify(pullRequest));
     const [requiredApprovals, currentApprovals, actionUser] = await Promise.all([
         owners_1.ownersForChangedFilesInPR(pullRequest),
         currentPRApprovals(pullRequest),
@@ -398,7 +398,7 @@ const generateReviewComment = (statuses, pr) => {
     const codeownerSummary = [
         `CODEOWNERS was triggered for the following patterns:`,
         ...statuses.map(s => requirementFormat(s.requirement)),
-        '',
+        ''
     ];
     const remainingApprovalSummary = remainingApprovalOwners.length
         ? [
