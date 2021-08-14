@@ -5,6 +5,7 @@ import {context} from '@actions/github'
 
 async function run(): Promise<void> {
   try {
+    core.info(`GITHUB_ACTOR: ${process.env.GITHUB_ACTOR}`)
     const pr: PullRequest = context.payload.pull_request as PullRequest
     await onPullRequestUpdate(pr)
   } catch (error) {

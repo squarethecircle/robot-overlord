@@ -29,33 +29,26 @@ enum CodeownersBotAction {
 const currentPRApprovals = async (
   pullRequest: PullRequest
 ): Promise<string[]> => {
-  const approvedBy = new Set<string>()
-  try {
-    const reviews = await octokit.paginate(
-      octokit.rest.pulls.listReviews,
-      getParamsForPR(pullRequest)
-    )
-    if (!reviews) {
-      return []
-    }
-    reviews.forEach(review => {
-      if (!review.user) {
-        return
-      }
-      if (review.state === 'APPROVED') {
-        approvedBy.add(review.user.login)
-      }
-      if (
-        review.state === 'DISMISSED' ||
-        review.state === 'CHANGES_REQUESTED'
-      ) {
-        approvedBy.delete(review.user.login)
-      }
-    })
-  } catch (err) {
-    core.info('failure in fetching approvals')
-    core.error(err)
+  const reviews = await octokit.paginate(
+    octokit.rest.pulls.listReviews,
+    getParamsForPR(pullRequest)
+  )
+  if (!reviews) {
+    return []
   }
+  const approvedBy = new Set<string>()
+
+  reviews.forEach(review => {
+    if (!review.user) {
+      return
+    }
+    if (review.state === 'APPROVED') {
+      approvedBy.add(review.user.login)
+    }
+    if (review.state === 'DISMISSED' || review.state === 'CHANGES_REQUESTED') {
+      approvedBy.delete(review.user.login)
+    }
+  })
   return Array.from(approvedBy)
 }
 
@@ -149,7 +142,8 @@ const generateReviewComment = (
     `- ${req.pattern}: [${req.members.map(ownerFormat).join(' ')}]`
   const codeownerSummary = [
     `CODEOWNERS was triggered for the following patterns:`,
-    ...statuses.map(s => requirementFormat(s.requirement))
+    ...statuses.map(s => requirementFormat(s.requirement)),
+    ''
   ]
 
   const remainingApprovalSummary = remainingApprovalOwners.length

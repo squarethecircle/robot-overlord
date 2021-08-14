@@ -31,6 +31,7 @@ const reviews_1 = __nccwpck_require__(6119);
 const github_1 = __nccwpck_require__(5438);
 async function run() {
     try {
+        core.info(`GITHUB_ACTOR: ${process.env.GITHUB_ACTOR}`);
         const pr = github_1.context.payload.pull_request;
         await reviews_1.onPullRequestUpdate(pr);
     }
@@ -84,7 +85,7 @@ const getParamsForPR = (pr) => {
 };
 exports.getParamsForPR = getParamsForPR;
 const getActionUsername = async () => {
-    return 'superbot';
+    return 'github-actions';
 };
 exports.getActionUsername = getActionUsername;
 
@@ -310,29 +311,23 @@ var CodeownersBotAction;
     CodeownersBotAction["NOTHING"] = "NOTHING";
 })(CodeownersBotAction || (CodeownersBotAction = {}));
 const currentPRApprovals = async (pullRequest) => {
+    const reviews = await octokit_1.octokit.paginate(octokit_1.octokit.rest.pulls.listReviews, octokit_1.getParamsForPR(pullRequest));
+    if (!reviews) {
+        return [];
+    }
     const approvedBy = new Set();
-    try {
-        const reviews = await octokit_1.octokit.paginate(octokit_1.octokit.rest.pulls.listReviews, octokit_1.getParamsForPR(pullRequest));
-        if (!reviews) {
-            return [];
+    reviews.forEach(review => {
+        if (!review.user) {
+            return;
         }
-        reviews.forEach(review => {
-            if (!review.user) {
-                return;
-            }
-            if (review.state === 'APPROVED') {
-                approvedBy.add(review.user.login);
-            }
-            if (review.state === 'DISMISSED' ||
-                review.state === 'CHANGES_REQUESTED') {
-                approvedBy.delete(review.user.login);
-            }
-        });
-    }
-    catch (err) {
-        core.info('failure in fetching approvals');
-        core.error(err);
-    }
+        if (review.state === 'APPROVED') {
+            approvedBy.add(review.user.login);
+        }
+        if (review.state === 'DISMISSED' ||
+            review.state === 'CHANGES_REQUESTED') {
+            approvedBy.delete(review.user.login);
+        }
+    });
     return Array.from(approvedBy);
 };
 const getCodeownerApprovalStatusForPR = async (pullRequest) => {
@@ -402,7 +397,8 @@ const generateReviewComment = (statuses, pr) => {
     const requirementFormat = (req) => `- ${req.pattern}: [${req.members.map(ownerFormat).join(' ')}]`;
     const codeownerSummary = [
         `CODEOWNERS was triggered for the following patterns:`,
-        ...statuses.map(s => requirementFormat(s.requirement))
+        ...statuses.map(s => requirementFormat(s.requirement)),
+        '',
     ];
     const remainingApprovalSummary = remainingApprovalOwners.length
         ? [

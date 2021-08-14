@@ -26,7 +26,7 @@ export const getParamsForPR = (
 }
 
 const getActionUsername = async (): Promise<string> => {
-  return 'superbot'
+  return 'github-actions'
 }
 
 export {octokit, extractOctokitResponse, getActionUsername}
