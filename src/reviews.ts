@@ -10,7 +10,7 @@ import {
   CodeownerUser,
   CodeownerRequirement
 } from './types'
-import {ownersForChangedFilesInPR} from './owners'
+import {ownersForChangedFilesInPR, trimUsername} from './owners'
 import * as tg from 'type-guards'
 import * as core from '@actions/core'
 
@@ -66,6 +66,7 @@ const getCodeownerApprovalStatusForPR = async (
     // count author towards owners requirement.
     currentApprovals.push(author)
   }
+  const currentApprovalsTrimmed = currentApprovals.map(trimUsername)
   const alreadyApprovedByBot = currentApprovals.includes(actionUser)
 
   const ownerMatchedBy = (owner: Codeowner, candidates: string[]): string[] => {
@@ -80,7 +81,7 @@ const getCodeownerApprovalStatusForPR = async (
     satisfiedBy: [
       ...new Set<string>(
         requirement.members
-          .map(owner => ownerMatchedBy(owner, currentApprovals))
+          .map(owner => ownerMatchedBy(owner, currentApprovalsTrimmed))
           .flat()
       )
     ]
