@@ -24,6 +24,7 @@ jobs:
         uses: squarethecircle/robot-overlord@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-user: 'github-actions'
           org-name: TheMachine
           approvers-dir: '.github/approvers'
 ```
