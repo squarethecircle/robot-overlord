@@ -8,7 +8,7 @@ import {
 import * as codeowners from 'codeowners-utils'
 import * as core from '@actions/core'
 import * as fs from 'fs'
-import path from 'path/posix'
+import * as path from 'path'
 import YAML from 'yaml'
 import * as tg from 'type-guards'
 

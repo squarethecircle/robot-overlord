@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import {onPullRequestUpdate} from './reviews'
-import {PullRequest} from './octokit';
+import {PullRequest} from './octokit'
 import {context} from '@actions/github'
 
 async function run(): Promise<void> {

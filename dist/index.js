@@ -125,7 +125,7 @@ const octokit_1 = __nccwpck_require__(3258);
 const codeowners = __importStar(__nccwpck_require__(4445));
 const core = __importStar(__nccwpck_require__(2186));
 const fs = __importStar(__nccwpck_require__(5747));
-const posix_1 = __importDefault(__nccwpck_require__(3301));
+const path = __importStar(__nccwpck_require__(5622));
 const yaml_1 = __importDefault(__nccwpck_require__(3552));
 const tg = __importStar(__nccwpck_require__(8050));
 function mapWithDefault(map, key, options) {
@@ -156,7 +156,7 @@ const approverGroupsFromConfigDir = () => {
         if (!matches)
             return;
         const groupName = `@${orgName}/matches[1]`;
-        const data = fs.readFileSync(posix_1.default.join(approversDir, filename), 'utf-8');
+        const data = fs.readFileSync(path.join(approversDir, filename), 'utf-8');
         try {
             const parsedConfig = yaml_1.default.parse(data);
             if (parsedConfig.approvers) {
@@ -15241,14 +15241,6 @@ module.exports = __nccwpck_require__(5065).YAML
 /***/ ((module) => {
 
 module.exports = eval("require")("encoding");
-
-
-/***/ }),
-
-/***/ 3301:
-/***/ ((module) => {
-
-module.exports = eval("require")("path/posix");
 
 
 /***/ }),
