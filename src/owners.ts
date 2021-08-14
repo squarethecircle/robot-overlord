@@ -138,8 +138,12 @@ export const ownersForChangedFilesInPR = async (
   for (const filename of changedFiles) {
     const matchingEntry = codeowners.matchFile(filename, codeownersEntries)
     if (!matchingEntry) {
+      core.info(`No matching CODEOWNERS entry for ${filename}`)
       continue
     }
+    core.info(`Matched CODEOWNERS for ${filename}`)
+    core.info(`${matchingEntry.pattern}: ${matchingEntry.owners.join(', ')}`)
+
     let requirement: CodeownerRequirement | undefined = ownerRequirements.get(
       matchingEntry.pattern
     )
@@ -165,5 +169,8 @@ export const ownersForChangedFilesInPR = async (
     }
   }
   await resolveGroupMembership(Array.from(ownerGroupsByName.values()))
+  for (const requirement of ownerRequirements.values()) {
+    core.info(`${requirement.pattern}: ${JSON.stringify(requirement.members)}`)
+  }
   return Array.from(ownerRequirements.values())
 }
