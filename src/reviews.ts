@@ -80,7 +80,7 @@ const generateReviewComment = (
   pr: PullRequest
 ): string => {
   const usersToConsider = new Set(
-    (pr.assignees || [])
+    (pr.assignees || []).concat(pr.requested_reviewers || [])
       .concat([pr.user])
       .filter(tg.isNotNullish)
       .map(user => user.login)
