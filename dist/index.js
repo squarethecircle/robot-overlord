@@ -28,21 +28,32 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const reviews_1 = __nccwpck_require__(6119);
+const utils_1 = __nccwpck_require__(918);
 const github_1 = __nccwpck_require__(5438);
 async function run() {
+    var _a;
     try {
         if (!['pull_request_review', 'pull_request_target', 'issue_comment'].includes(github_1.context.eventName)) {
             core.error('Invalid triggering event, must be one of [pull_request_review, pull_request_target, issue_comment]');
             return;
         }
+        let pr = github_1.context.payload.pull_request;
         let manuallyTriggered = false;
         if (github_1.context.eventName === 'issue_comment') {
             const comment = github_1.context.payload.comment;
-            if (!github_1.context.payload.pull_request || !comment.body || !(comment.body.includes('/codeowners'))) {
+            if (!((_a = github_1.context.payload.issue) === null || _a === void 0 ? void 0 : _a.pull_request) ||
+                !comment.body ||
+                !comment.body.includes('/codeowners')) {
                 core.info('No need to run, issue comment without trigger.');
                 return;
             }
             manuallyTriggered = true;
+            const prParams = utils_1.extractParamsFromPRLink(github_1.context.payload.issue.pull_request.url);
+            if (!prParams) {
+                core.info(`Failed to parse PR link: ${github_1.context.payload.issue.pull_request.url}`);
+                return;
+            }
+            pr = await utils_1.getPullRequest(prParams);
         }
         if (github_1.context.eventName === 'pull_request_review') {
             const review = github_1.context.payload.review;
@@ -51,7 +62,6 @@ async function run() {
                 return;
             }
         }
-        const pr = github_1.context.payload.pull_request;
         await reviews_1.onPullRequestUpdate(pr, manuallyTriggered);
     }
     catch (error) {
@@ -298,9 +308,10 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
     var _a;
     const author = (_a = pullRequest.user) === null || _a === void 0 ? void 0 : _a.login;
     const actionUser = utils_1.getActionUser();
-    const [requiredApprovals, currentApprovalLogins] = await Promise.all([
+    const [requiredApprovals, currentApprovalLogins, previousComments] = await Promise.all([
         owners_1.ownersForChangedFilesInPR(pullRequest),
-        utils_1.currentPRApprovals(pullRequest)
+        utils_1.currentPRApprovals(pullRequest),
+        utils_1.previousPRBotComments(pullRequest)
     ]);
     const hasAtLeastOneApproval = currentApprovalLogins.length > 0;
     if (author) {
@@ -317,7 +328,7 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
     const requirementSatisfiedBy = (requirement, candidates) => {
         return [
             ...new Set(requirement.members
-                .map(owner => ownerMatchedBy(owner, currentApprovals))
+                .map(owner => ownerMatchedBy(owner, candidates))
                 .flat())
         ];
     };
@@ -326,20 +337,32 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
         satisfiedBy: requirementSatisfiedBy(requirement, currentApprovals)
     }));
     const passesAllOwnersRequirements = statuses.every(s => !!s.satisfiedBy.length);
-    const botCanSatisfyRequirement = requiredApprovals.some(r => requirementSatisfiedBy(r, [actionUser]));
+    const botCanSatisfyRequirement = requiredApprovals.some(r => requirementSatisfiedBy(r, [actionUser]).length);
+    const previousPatterns = previousComments.length
+        ? utils_1.parsePatternsFromReviewComment(previousComments[previousComments.length - 1])
+        : new Set();
+    core.info(`Previous patterns: [${Array.from(previousPatterns).join(', ')}]`);
+    const currentPatterns = new Set();
+    for (const requirement of requiredApprovals) {
+        currentPatterns.add(requirement.pattern);
+    }
+    core.info(`Current patterns: [${Array.from(currentPatterns).join(', ')}]`);
+    const patternsChanged = !!utils_1.symmetricDifference(previousPatterns, currentPatterns).size;
     let finalAction;
-    if (!botCanSatisfyRequirement) {
+    if (!botCanSatisfyRequirement || !patternsChanged) {
         finalAction = types_1.CodeownersBotAction.NOTHING;
     }
-    if (hasAtLeastOneApproval && passesAllOwnersRequirements) {
-        finalAction = alreadyApprovedByBot
-            ? types_1.CodeownersBotAction.NOTHING
-            : types_1.CodeownersBotAction.APPROVE;
-    }
     else {
-        finalAction = alreadyApprovedByBot
-            ? types_1.CodeownersBotAction.REQUEST_CHANGES
-            : types_1.CodeownersBotAction.COMMENT;
+        if (hasAtLeastOneApproval && passesAllOwnersRequirements) {
+            finalAction = alreadyApprovedByBot
+                ? types_1.CodeownersBotAction.NOTHING
+                : types_1.CodeownersBotAction.APPROVE;
+        }
+        else {
+            finalAction = alreadyApprovedByBot
+                ? types_1.CodeownersBotAction.REQUEST_CHANGES
+                : types_1.CodeownersBotAction.COMMENT;
+        }
     }
     return [finalAction, statuses];
 };
@@ -444,9 +467,22 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getActionUser = exports.getPRChangedFilenames = exports.trimUsername = exports.mapWithDefault = exports.currentPRApprovals = exports.postReviewApproval = exports.postReviewComment = exports.getParamsForPR = void 0;
+exports.symmetricDifference = exports.getActionUser = exports.parsePatternsFromReviewComment = exports.getPRChangedFilenames = exports.trimUsername = exports.mapWithDefault = exports.currentPRApprovals = exports.previousPRBotComments = exports.postReviewApproval = exports.postReviewComment = exports.getPullRequest = exports.getParamsForPR = exports.extractParamsFromPRLink = void 0;
 const octokit_1 = __nccwpck_require__(3258);
 const core = __importStar(__nccwpck_require__(2186));
+const tg = __importStar(__nccwpck_require__(8050));
+const extractParamsFromPRLink = (link) => {
+    const match = link.match(/repos\/(.+)\/(.+)\/pulls\/(\d+)/);
+    if (match && match.length > 3) {
+        return {
+            owner: match[1],
+            repo: match[2],
+            pull_number: parseInt(match[3])
+        };
+    }
+    return null;
+};
+exports.extractParamsFromPRLink = extractParamsFromPRLink;
 const getParamsForPR = (pr) => {
     return {
         owner: pr.base.repo.owner.login,
@@ -456,6 +492,11 @@ const getParamsForPR = (pr) => {
     };
 };
 exports.getParamsForPR = getParamsForPR;
+const getPullRequest = async ({ owner, repo, pull_number }) => {
+    const { data: pr } = await octokit_1.octokit.rest.pulls.get({ owner, repo, pull_number });
+    return pr;
+};
+exports.getPullRequest = getPullRequest;
 const postReviewComment = async (pullRequest, body) => {
     await octokit_1.octokit.rest.issues.createComment({
         body,
@@ -471,6 +512,15 @@ const postReviewApproval = async (pullRequest, action, body) => {
     });
 };
 exports.postReviewApproval = postReviewApproval;
+const previousPRBotComments = async (pullRequest) => {
+    const comments = await octokit_1.octokit.paginate(octokit_1.octokit.rest.issues.listComments, exports.getParamsForPR(pullRequest));
+    const actionUser = exports.getActionUser();
+    return comments
+        .filter(c => { var _a; return ((_a = c.user) === null || _a === void 0 ? void 0 : _a.login) === actionUser; })
+        .map(c => c.body)
+        .filter(tg.isNotNullish);
+};
+exports.previousPRBotComments = previousPRBotComments;
 const currentPRApprovals = async (pullRequest) => {
     const reviews = await octokit_1.octokit.paginate(octokit_1.octokit.rest.pulls.listReviews, exports.getParamsForPR(pullRequest));
     if (!reviews) {
@@ -513,10 +563,33 @@ const getPRChangedFilenames = async (pr) => {
     return files.map(f => f.filename);
 };
 exports.getPRChangedFilenames = getPRChangedFilenames;
+const parsePatternsFromReviewComment = (body) => {
+    const regex = new RegExp(`- (.+?): \\[`, 'g');
+    const matches = [];
+    let match;
+    while ((match = regex.exec(body)) !== null) {
+        matches.push(match[1]);
+    }
+    return new Set(matches);
+};
+exports.parsePatternsFromReviewComment = parsePatternsFromReviewComment;
 const getActionUser = () => {
     return core.getInput('github-user');
 };
 exports.getActionUser = getActionUser;
+function symmetricDifference(setA, setB) {
+    const _difference = new Set(setA);
+    for (const elem of setB) {
+        if (_difference.has(elem)) {
+            _difference.delete(elem);
+        }
+        else {
+            _difference.add(elem);
+        }
+    }
+    return _difference;
+}
+exports.symmetricDifference = symmetricDifference;
 
 
 /***/ }),
