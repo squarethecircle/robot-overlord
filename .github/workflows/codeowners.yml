@@ -1,7 +1,8 @@
 name: 'CODEOWNERS check'
 on:
-  pull_request_target: {types: [opened]}
+  pull_request_target: {types: [opened, synchronize]}
   pull_request_review: {types: [submitted]}
+  issue_comment: {types: [created]}
 jobs:
   build:
     runs-on: ubuntu-latest

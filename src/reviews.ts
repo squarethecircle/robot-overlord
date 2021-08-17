@@ -45,22 +45,37 @@ const getCodeownerApprovalStatusForPR = async (
     return candidates.filter(c => validApprovers.has(c))
   }
 
-  const statuses: CodeownersStatus[] = requiredApprovals.map(requirement => ({
-    requirement,
-    satisfiedBy: [
+  const requirementSatisfiedBy = (
+    requirement: CodeownerRequirement,
+    candidates: string[]
+  ): string[] => {
+    return [
       ...new Set<string>(
         requirement.members
           .map(owner => ownerMatchedBy(owner, currentApprovals))
           .flat()
       )
     ]
+  }
+
+  const statuses: CodeownersStatus[] = requiredApprovals.map(requirement => ({
+    requirement,
+    satisfiedBy: requirementSatisfiedBy(requirement, currentApprovals)
   }))
 
   const passesAllOwnersRequirements = statuses.every(
     s => !!s.satisfiedBy.length
   )
 
+  const botCanSatisfyRequirement = requiredApprovals.some(r =>
+    requirementSatisfiedBy(r, [actionUser])
+  )
+
   let finalAction
+
+  if (!botCanSatisfyRequirement) {
+    finalAction = CodeownersBotAction.NOTHING
+  }
 
   if (hasAtLeastOneApproval && passesAllOwnersRequirements) {
     finalAction = alreadyApprovedByBot
@@ -80,7 +95,8 @@ const generateReviewComment = (
   pr: PullRequest
 ): string => {
   const usersToConsider = new Set(
-    (pr.assignees || []).concat(pr.requested_reviewers || [])
+    (pr.assignees || [])
+      .concat(pr.requested_reviewers || [])
       .concat([pr.user])
       .filter(tg.isNotNullish)
       .map(user => user.login)
@@ -127,15 +143,19 @@ const generateReviewComment = (
 }
 
 export const onPullRequestUpdate = async (
-  pullRequest: PullRequest
+  pullRequest: PullRequest,
+  manuallyTriggered: boolean
 ): Promise<void> => {
   const [action, statuses] = await getCodeownerApprovalStatusForPR(pullRequest)
-  if (action === CodeownersBotAction.NOTHING) {
+  if (action === CodeownersBotAction.NOTHING && !manuallyTriggered) {
     return
   }
   const statusBody = generateReviewComment(statuses, pullRequest)
   core.info(statusBody)
-  if (action === CodeownersBotAction.COMMENT) {
+  if (
+    action === CodeownersBotAction.COMMENT ||
+    action === CodeownersBotAction.NOTHING
+  ) {
     postReviewComment(pullRequest, statusBody)
   } else {
     postReviewApproval(pullRequest, action, statusBody)

@@ -31,15 +31,28 @@ const reviews_1 = __nccwpck_require__(6119);
 const github_1 = __nccwpck_require__(5438);
 async function run() {
     try {
+        if (!['pull_request_review', 'pull_request_target', 'issue_comment'].includes(github_1.context.eventName)) {
+            core.error('Invalid triggering event, must be one of [pull_request_review, pull_request_target, issue_comment]');
+            return;
+        }
+        let manuallyTriggered = false;
+        if (github_1.context.eventName === 'issue_comment') {
+            const comment = github_1.context.payload.comment;
+            if (!github_1.context.payload.pull_request || !comment.body || !(comment.body.includes('/codeowners'))) {
+                core.info('No need to run, issue comment without trigger.');
+                return;
+            }
+            manuallyTriggered = true;
+        }
         if (github_1.context.eventName === 'pull_request_review') {
             const review = github_1.context.payload.review;
-            if (review.state === 'commented' && !review.body.includes('/codeowners')) {
-                core.info('No need to run, it was only a comment.');
+            if (review.state === 'commented') {
+                core.info('No need to run, it was only a review comment.');
                 return;
             }
         }
         const pr = github_1.context.payload.pull_request;
-        await reviews_1.onPullRequestUpdate(pr);
+        await reviews_1.onPullRequestUpdate(pr, manuallyTriggered);
     }
     catch (error) {
         core.setFailed(error.message);
@@ -301,16 +314,23 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
         const validApprovers = new Set('members' in owner ? owner.members : [owner.username]);
         return candidates.filter(c => validApprovers.has(c));
     };
-    const statuses = requiredApprovals.map(requirement => ({
-        requirement,
-        satisfiedBy: [
+    const requirementSatisfiedBy = (requirement, candidates) => {
+        return [
             ...new Set(requirement.members
                 .map(owner => ownerMatchedBy(owner, currentApprovals))
                 .flat())
-        ]
+        ];
+    };
+    const statuses = requiredApprovals.map(requirement => ({
+        requirement,
+        satisfiedBy: requirementSatisfiedBy(requirement, currentApprovals)
     }));
     const passesAllOwnersRequirements = statuses.every(s => !!s.satisfiedBy.length);
+    const botCanSatisfyRequirement = requiredApprovals.some(r => requirementSatisfiedBy(r, [actionUser]));
     let finalAction;
+    if (!botCanSatisfyRequirement) {
+        finalAction = types_1.CodeownersBotAction.NOTHING;
+    }
     if (hasAtLeastOneApproval && passesAllOwnersRequirements) {
         finalAction = alreadyApprovedByBot
             ? types_1.CodeownersBotAction.NOTHING
@@ -325,6 +345,7 @@ const getCodeownerApprovalStatusForPR = async (pullRequest) => {
 };
 const generateReviewComment = (statuses, pr) => {
     const usersToConsider = new Set((pr.assignees || [])
+        .concat(pr.requested_reviewers || [])
         .concat([pr.user])
         .filter(tg.isNotNullish)
         .map(user => user.login));
@@ -360,14 +381,15 @@ const generateReviewComment = (statuses, pr) => {
         : [`This PR has received all required CODEOWNERS approvals.`];
     return codeownerSummary.concat(remainingApprovalSummary).join('\n');
 };
-const onPullRequestUpdate = async (pullRequest) => {
+const onPullRequestUpdate = async (pullRequest, manuallyTriggered) => {
     const [action, statuses] = await getCodeownerApprovalStatusForPR(pullRequest);
-    if (action === types_1.CodeownersBotAction.NOTHING) {
+    if (action === types_1.CodeownersBotAction.NOTHING && !manuallyTriggered) {
         return;
     }
     const statusBody = generateReviewComment(statuses, pullRequest);
     core.info(statusBody);
-    if (action === types_1.CodeownersBotAction.COMMENT) {
+    if (action === types_1.CodeownersBotAction.COMMENT ||
+        action === types_1.CodeownersBotAction.NOTHING) {
         utils_1.postReviewComment(pullRequest, statusBody);
     }
     else {

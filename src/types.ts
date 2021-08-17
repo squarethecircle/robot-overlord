@@ -13,6 +13,9 @@ export type PullRequest = extractOctokitResponse<typeof octokit.rest.pulls.get>
 export type PullRequestReview = extractOctokitResponse<
   typeof octokit.rest.pulls.getReview
 >
+export type IssueComment = extractOctokitResponse<
+  typeof octokit.rest.issues.getComment
+>
 
 export type CodeownerGroup = {
   groupName: string
