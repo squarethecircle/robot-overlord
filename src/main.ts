@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 import {onPullRequestUpdate} from './reviews'
 import {PullRequest, PullRequestReview, IssueComment} from './types'
+import {extractParamsFromPRLink, getPullRequest} from './utils'
 import {context} from '@actions/github'
 
 async function run(): Promise<void> {
@@ -15,11 +16,12 @@ async function run(): Promise<void> {
       )
       return
     }
+    let pr: PullRequest = context.payload.pull_request as PullRequest
     let manuallyTriggered = false
     if (context.eventName === 'issue_comment') {
       const comment = context.payload.comment as IssueComment
       if (
-        !context.payload.pull_request ||
+        !context.payload.issue?.pull_request ||
         !comment.body ||
         !comment.body.includes('/codeowners')
       ) {
@@ -27,6 +29,16 @@ async function run(): Promise<void> {
         return
       }
       manuallyTriggered = true
+      const prParams = extractParamsFromPRLink(
+        context.payload.issue.pull_request.url
+      )
+      if (!prParams) {
+        core.info(
+          `Failed to parse PR link: ${context.payload.issue.pull_request.url}`
+        )
+        return
+      }
+      pr = await getPullRequest(prParams)
     }
     if (context.eventName === 'pull_request_review') {
       const review = context.payload.review as PullRequestReview
@@ -35,7 +47,7 @@ async function run(): Promise<void> {
         return
       }
     }
-    const pr: PullRequest = context.payload.pull_request as PullRequest
+    core.info(JSON.stringify(pr))
     await onPullRequestUpdate(pr, manuallyTriggered)
   } catch (error) {
     core.setFailed(error.message)
