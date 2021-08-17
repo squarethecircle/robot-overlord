@@ -1,6 +1,21 @@
 import {PullRequest} from './types'
 import {octokit} from './octokit'
 import * as core from '@actions/core'
+import * as tg from 'type-guards'
+
+export const extractParamsFromPRLink = (
+  link: string
+): {owner: string; repo: string; pull_number: number} | null => {
+  const match = link.match(/repos\/(.+)\/(.+)\/pulls\/(\d+)/)
+  if (match && match.length > 3) {
+    return {
+      owner: match[1],
+      repo: match[2],
+      pull_number: parseInt(match[3])
+    }
+  }
+  return null
+}
 
 export const getParamsForPR = (
   pr: PullRequest
@@ -11,6 +26,19 @@ export const getParamsForPR = (
     pull_number: pr.number,
     issue_number: pr.number
   }
+}
+
+export const getPullRequest = async ({
+  owner,
+  repo,
+  pull_number
+}: {
+  owner: string
+  repo: string
+  pull_number: number
+}): Promise<PullRequest> => {
+  const {data: pr} = await octokit.rest.pulls.get({owner, repo, pull_number})
+  return pr
 }
 
 export const postReviewComment = async (
@@ -33,6 +61,19 @@ export const postReviewApproval = async (
     event: action,
     ...getParamsForPR(pullRequest)
   })
+}
+export const previousPRBotComments = async (
+  pullRequest: PullRequest
+): Promise<string[]> => {
+  const comments = await octokit.paginate(
+    octokit.rest.issues.listComments,
+    getParamsForPR(pullRequest)
+  )
+  const actionUser = getActionUser()
+  return comments
+    .filter(c => c.user && trimUsername(c.user.login) === actionUser)
+    .map(c => c.body)
+    .filter(tg.isNotNullish)
 }
 
 export const currentPRApprovals = async (
@@ -91,7 +132,28 @@ export const getPRChangedFilenames = async (
   )
   return files.map(f => f.filename)
 }
+export const parsePatternsFromReviewComment = (body: string): Set<string> => {
+  const regex = new RegExp(`- (.+?): \\[`, 'g')
+  const matches: string[] = []
+  let match
+  while ((match = regex.exec(body)) !== null) {
+    matches.push(match[1])
+  }
+  return new Set(matches)
+}
 
 export const getActionUser = (): string => {
   return core.getInput('github-user')
+}
+
+export function symmetricDifference<T>(setA: Set<T>, setB: Set<T>): Set<T> {
+  const _difference = new Set<T>(setA)
+  for (const elem of setB) {
+    if (_difference.has(elem)) {
+      _difference.delete(elem)
+    } else {
+      _difference.add(elem)
+    }
+  }
+  return _difference
 }

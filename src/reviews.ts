@@ -12,10 +12,13 @@ import {ownersForChangedFilesInPR} from './owners'
 import * as tg from 'type-guards'
 import * as core from '@actions/core'
 import {
-  postReviewComment,
-  postReviewApproval,
   currentPRApprovals,
   getActionUser,
+  parsePatternsFromReviewComment,
+  postReviewComment,
+  postReviewApproval,
+  previousPRBotComments,
+  symmetricDifference,
   trimUsername
 } from './utils'
 
@@ -24,19 +27,23 @@ const getCodeownerApprovalStatusForPR = async (
 ): Promise<[CodeownersBotAction, CodeownersStatus[]]> => {
   const author = pullRequest.user?.login
   const actionUser = getActionUser()
-  const [requiredApprovals, currentApprovalLogins] = await Promise.all([
+  const [
+    requiredApprovals,
+    currentApprovalLogins,
+    previousComments
+  ] = await Promise.all([
     ownersForChangedFilesInPR(pullRequest),
-    currentPRApprovals(pullRequest)
+    currentPRApprovals(pullRequest),
+    previousPRBotComments(pullRequest)
   ])
-  const hasAtLeastOneApproval = currentApprovalLogins.length > 0
+  const currentApprovals = currentApprovalLogins.map(trimUsername)
+  const hasAtLeastOneApproval = currentApprovals.length > 0
+  const alreadyApprovedByBot = currentApprovals.includes(actionUser)
   if (author) {
     // count author towards owners requirement.
-    currentApprovalLogins.push(author)
+    currentApprovals.push(trimUsername(author))
   }
-  const currentApprovals = currentApprovalLogins.map(trimUsername)
   core.info(`current approvals: ${currentApprovals.join(', ')}`)
-
-  const alreadyApprovedByBot = currentApprovals.includes(actionUser)
 
   const ownerMatchedBy = (owner: Codeowner, candidates: string[]): string[] => {
     const validApprovers = new Set(
@@ -52,7 +59,7 @@ const getCodeownerApprovalStatusForPR = async (
     return [
       ...new Set<string>(
         requirement.members
-          .map(owner => ownerMatchedBy(owner, currentApprovals))
+          .map(owner => ownerMatchedBy(owner, candidates))
           .flat()
       )
     ]
@@ -67,24 +74,43 @@ const getCodeownerApprovalStatusForPR = async (
     s => !!s.satisfiedBy.length
   )
 
-  const botCanSatisfyRequirement = requiredApprovals.some(r =>
-    requirementSatisfiedBy(r, [actionUser])
+  const botCanSatisfyRequirement = requiredApprovals.some(
+    r => requirementSatisfiedBy(r, [actionUser]).length
   )
+
+  const previousPatterns = previousComments.length
+    ? parsePatternsFromReviewComment(
+        previousComments[previousComments.length - 1]
+      )
+    : new Set()
+
+  core.info(`Previous patterns: [${Array.from(previousPatterns).join(', ')}]`)
+
+  const currentPatterns: Set<string> = new Set()
+  for (const requirement of requiredApprovals) {
+    currentPatterns.add(requirement.pattern)
+  }
+  core.info(`Current patterns: [${Array.from(currentPatterns).join(', ')}]`)
+
+  const patternsChanged = !!symmetricDifference(
+    previousPatterns,
+    currentPatterns
+  ).size
 
   let finalAction
 
-  if (!botCanSatisfyRequirement) {
+  if (!botCanSatisfyRequirement || !patternsChanged) {
     finalAction = CodeownersBotAction.NOTHING
-  }
-
-  if (hasAtLeastOneApproval && passesAllOwnersRequirements) {
-    finalAction = alreadyApprovedByBot
-      ? CodeownersBotAction.NOTHING
-      : CodeownersBotAction.APPROVE
   } else {
-    finalAction = alreadyApprovedByBot
-      ? CodeownersBotAction.REQUEST_CHANGES
-      : CodeownersBotAction.COMMENT
+    if (hasAtLeastOneApproval && passesAllOwnersRequirements) {
+      finalAction = alreadyApprovedByBot
+        ? CodeownersBotAction.NOTHING
+        : CodeownersBotAction.APPROVE
+    } else {
+      finalAction = alreadyApprovedByBot
+        ? CodeownersBotAction.REQUEST_CHANGES
+        : CodeownersBotAction.COMMENT
+    }
   }
 
   return [finalAction, statuses]
